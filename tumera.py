@@ -114,7 +114,7 @@ def convert():
                         material_name = "minecraft:" + str(pathlib.Path(model_path).stem)
                         if not material_name in geyser_item_mapping['items']:
                             geyser_item_mapping['items'][material_name] = []
-                        defined_item_name = "tumera_" + str(current_index)
+                        defined_item_name = "tumera_item_" + str(current_index)
                         item_mapping = {
                             "name": defined_item_name,
                             "allow_offhand": True,
@@ -162,7 +162,33 @@ def convert():
                         if "minecraft:block/" in model:
                             # probably vanilla
                             continue
-                        print("todo: handle blockstate conversion")
+                        base_block_name = "minecraft:" + str(pathlib.Path(blockstate_path).stem)
+                        if not base_block_name in geyser_block_mapping['blocks']:
+                            geyser_block_mapping['blocks'][base_block_name] = {
+                                "name": base_block_name.replace("minecraft:", ""),
+                                "geometry": "geometry.cube",
+                                "included_in_creative_inventory": False,
+                                "only_override_states": True,
+                                "place_air": True,
+                                "state_overrides": {
+                                }
+                            }
+                        defined_block_name = "tumera_block_" + str(current_index)
+                        state_override_mapping = {
+                            "name": defined_block_name,
+                            "display_name": defined_block_name,
+                            "geometry": "geometry.cube",
+                            "material_instances": {
+                                "*": {
+                                    "texture": defined_block_name,
+                                    "render_method": "alpha_test",
+                                    "face_dimming": True,
+                                    "ambient_occlusion": True
+                                }
+                            }
+                        }
+                        geyser_block_mapping['blocks'][base_block_name]['state_overrides'][state] = state_override_mapping
+                        current_index += 1
     open(os.path.join(bedrock_rp_dir, "geyser_item_mappings.json"), 'w').write(json.dumps(geyser_item_mapping))
     open(os.path.join(bedrock_rp_dir, "geyser_block_mappings.json"), 'w').write(json.dumps(geyser_block_mapping))
     open(os.path.join(bedrock_rp_dir, "textures", "item_texture.json"), 'w').write(json.dumps(item_textures))
