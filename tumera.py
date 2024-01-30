@@ -60,6 +60,7 @@ def generate_base_rp(rpdir):
     os.mkdir(os.path.join(rpdir, "textures", "blocks"))
     os.mkdir(os.path.join(rpdir, "texts"))
     os.mkdir(os.path.join(rpdir, "models"))
+    os.mkdir(os.path.join(rpdir, "models", "blocks"))
     lang_dir = os.path.join(rpdir, "texts")
     en_lang_file = f"pack.name = {pack_name}\npack.description = {pack_description}"
     lang_file = ["en_US"]
@@ -151,6 +152,12 @@ def convert():
         print("converting blockstate overrides...")
         current_index = 1
         for root, dirs, files in os.walk(blockstate_path):
+            if "note_block.json" in files:
+                print("generating necessary files for cube...")
+                cube_animation = {"format_version":"1.8.0","animations":{"animation.cube.thirdperson_main_hand":{"loop":True,"bones":{"block":{"rotation":[-20,145,-10],"position":[0,14,-6],"scale":[0.375,0.375,0.375]}}},"animation.cube.thirdperson_off_hand":{"loop":True,"bones":{"block":{"rotation":[20,40,20],"position":[0,13,-6],"scale":[0.375,0.375,0.375]}}},"animation.cube.head":{"loop":True,"bones":{"block":{"position":[0,19.9,0],"scale":0.625}}},"animation.cube.firstperson_main_hand":{"loop":True,"bones":{"block":{"rotation":[140,45,15],"position":[-1,17,0],"scale":[0.52,0.52,0.52]}}},"animation.cube.firstperson_off_hand":{"loop":True,"bones":{"block":{"rotation":[-5,45,-5],"position":[-17.5,17.5,15],"scale":[0.52,0.52,0.52]}}}}}
+                cube_geometry = {"format_version": "1.19.40", "minecraft:geometry": [{"description": {"identifier": "geometry.cube", "texture_width": 16, "texture_height": 16, "visible_bounds_width": 2, "visible_bounds_height": 2.5, "visible_bounds_offset": [0, 0.75, 0]}, "bones": [{"name": "block", "binding": "c.item_slot == 'head' ? 'head' : q.item_slot_to_bone_name(c.item_slot)", "pivot": [0, 8, 0], "cubes": [{"origin": [-8, 0, -8], "size": [16, 16, 16], "uv": {"north": {"uv": [0, 0], "uv_size": [16, 16]}, "east": {"uv": [0, 0], "uv_size": [16, 16]}, "south": {"uv": [0, 0], "uv_size": [16, 16]}, "west": {"uv": [0, 0], "uv_size": [16, 16]}, "up": {"uv": [16, 16], "uv_size": [-16, -16]}, "down": {"uv": [16, 16], "uv_size": [-16, -16]}}}]}]}]}
+                open(os.path.join(bedrock_rp_dir, "models", "blocks", "cube.json"), 'w').write(json.dumps(cube_geometry))
+                open(os.path.join(bedrock_rp_dir, "animations", "animation.cube.json"), 'w').write(json.dumps(cube_geometry))
             for file in files:
                 blockstate_path = os.path.join(root, file)
                 blockstate_data = json.load(open(blockstate_path, 'r'))
@@ -188,10 +195,33 @@ def convert():
                             }
                         }
                         geyser_block_mapping['blocks'][base_block_name]['state_overrides'][state] = state_override_mapping
+                        namespace = ""
+                        if not ":" in model:
+                            namespace = "minecraft"
+                        else:
+                            namespace = model.split(":")[0]
+                        block_model_path = str(os.path.join(jrp, "assets", namespace, "models", model.split(":")[1]) + ".json").replace("/", "\\")
+                        block_model = json.load(open(block_model_path, 'r'))
+                        if "textures" in block_model:
+                            # a fucking cursed way to deal with this shit but it kinda works?
+                            if block_model['parent'] == "block/cube_all":
+                                block_texture = block_model['textures']['all']
+                                tex_namespace = block_texture.split(":")[0]
+                                tex_path = str(os.path.join(jrp, "assets", namespace, "textures", model.split(":")[1]) + ".png").replace("/", "\\")
+                                shutil.copyfile(tex_path, os.path.join(bedrock_rp_dir, "textures", "blocks", pathlib.Path(tex_path).stem) + ".png")
+                                block_manifest = {
+                                    "textures": [
+                                        "textures/blocks/" + pathlib.Path(tex_path).stem
+                                    ]
+                                }
+                                terrain_textures['texture_data'][defined_block_name] = block_manifest
+                            else:
+                                print("todo: handle blocks with multi-face textures: " + block_model_path)
                         current_index += 1
     open(os.path.join(bedrock_rp_dir, "geyser_item_mappings.json"), 'w').write(json.dumps(geyser_item_mapping))
     open(os.path.join(bedrock_rp_dir, "geyser_block_mappings.json"), 'w').write(json.dumps(geyser_block_mapping))
     open(os.path.join(bedrock_rp_dir, "textures", "item_texture.json"), 'w').write(json.dumps(item_textures))
+    open(os.path.join(bedrock_rp_dir, "textures", "terrain_texture.json"), 'w').write(json.dumps(terrain_textures))
 
 def main(pack):
     print("tumera - 1.0\nbased on examples provided by ofunny & GeyserMC\n")
